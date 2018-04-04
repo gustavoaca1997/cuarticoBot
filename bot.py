@@ -4,6 +4,7 @@ import telepot
 from telepot.loop import MessageLoop
 from telepot.namedtuple import InlineKeyboardMarkup, InlineKeyboardButton
 from telepot.namedtuple import InlineKeyboardMarkup, InlineKeyboardButton
+from telepot.delegate import pave_event_space, per_chat_id, create_open, include_callback_query_chat_id
 
 from pprint import pprint
 
@@ -12,30 +13,34 @@ from Comprobante import Comprobante
 # Lista de comprobantes sin registrar
 comprobantes = []
 
-# Manejador de mensajes
-def on_chat_message(msg):
-    content_type, chat_type, chat_id = telepot.glance(msg)
+class ChatSesion(telepot.helper.ChatHandler):
+    def __init__(self, *args, **kwargs):
+        super(ChatSesion, self).__init__(*args, **kwargs)
 
-    # Si es un comprobante
-    if content_type in ['photo']:
-        comprobantes.append(Comprobante(msg))
-        pprint(msg)
+    # Manejador de mensajes
+    def on_chat_message(self, msg):
+        content_type, chat_type, chat_id = telepot.glance(msg)
 
-    elif content_type in ['text'] and is_comprobantes(msg['text']):
-        for c in comprobantes:
-            keyboard = InlineKeyboardMarkup(inline_keyboard=[
-                    [InlineKeyboardButton(text='Registrado', callback_data=comprobantes.index(c))]
-                ])
+        # Si es un comprobante
+        if content_type in ['photo']:
+            comprobantes.append(Comprobante(msg))
+            pprint(msg)
 
-            bot.sendPhoto(chat_id, c.msg['photo'][0]['file_id'], reply_markup=keyboard)
+        elif content_type in ['text'] and is_comprobantes(msg['text']):
+            for c in comprobantes:
+                keyboard = InlineKeyboardMarkup(inline_keyboard=[
+                        [InlineKeyboardButton(text='Registrado', callback_data=comprobantes.index(c))]
+                    ])
 
-def on_callback_query(msg):
-    query_id, from_id, query_data = telepot.glance(msg, flavor='callback_query')
-    # Se borra comprobante
-    del comprobantes[int(query_data)]
-    print('\nRegistrado comprobante', query_data)
+                bot.sendPhoto(chat_id, c.msg['photo'][0]['file_id'], reply_markup=keyboard)
 
-    bot.answerCallbackQuery(query_id, text='Comrpobante {} registrado.'.format(query_data))
+    def on_callback_query(self, msg):
+        query_id, from_id, query_data = telepot.glance(msg, flavor='callback_query')
+        # Se borra comprobante
+        del comprobantes[int(query_data)]
+        print('\nRegistrado comprobante', query_data)
+
+        bot.answerCallbackQuery(query_id, text='Comrpobante {} registrado.'.format(query_data))
 
 
 # Funcion que checkea si el texto es un comando
@@ -65,11 +70,12 @@ def is_comprobantes(comando):
 if __name__ == '__main__':
     TOKEN = sys.argv[1] #get token from cli
 
-    bot = telepot.Bot(TOKEN)
-    MessageLoop(bot, {
-            'chat': on_chat_message,
-            'callback_query': on_callback_query
-        }).run_as_thread()
+    bot = telepot.DelegatorBot(TOKEN, [
+        include_callback_query_chat_id(
+            pave_event_space())(
+                per_chat_id(), create_open, ChatSesion, timeout=3600),
+    ])
+    MessageLoop(bot).run_as_thread()
     print('Listening...')
 
     #keep the program running
