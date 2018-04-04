@@ -24,15 +24,20 @@ class ChatSesion(telepot.helper.ChatHandler):
         # Si es un comprobante
         if content_type in ['photo']:
             comprobantes.append(Comprobante(msg))
+
+            print('\n\nComprobante recibido:')
             pprint(msg)
 
         elif content_type in ['text'] and is_comprobantes(msg['text']):
+            indice = 0
             for c in comprobantes:
                 keyboard = InlineKeyboardMarkup(inline_keyboard=[
-                        [InlineKeyboardButton(text='Registrado', callback_data=comprobantes.index(c))]
+                        [InlineKeyboardButton(text='Registrado', callback_data=indice)]
                     ])
 
-                bot.sendPhoto(chat_id, c.msg['photo'][0]['file_id'], reply_markup=keyboard)
+                bot.sendPhoto(chat_id, c.msg['photo'][0]['file_id'], reply_markup=keyboard, caption='Comprobante {}'.format(indice))
+
+                indice += 1
 
     def on_callback_query(self, msg):
         query_id, from_id, query_data = telepot.glance(msg, flavor='callback_query')
@@ -40,7 +45,10 @@ class ChatSesion(telepot.helper.ChatHandler):
         del comprobantes[int(query_data)]
         print('\nRegistrado comprobante', query_data)
 
-        bot.answerCallbackQuery(query_id, text='Comrpobante {} registrado.'.format(query_data))
+        print('\n\nCallback Query:')
+        pprint(msg)
+        
+        bot.sendMessage(from_id, 'Comprobante {} registrado.'.format(query_data))
 
 
 # Funcion que checkea si el texto es un comando
