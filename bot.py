@@ -5,6 +5,8 @@ from telepot.loop import MessageLoop
 from telepot.namedtuple import InlineKeyboardMarkup, InlineKeyboardButton
 from telepot.namedtuple import InlineKeyboardMarkup, InlineKeyboardButton
 
+from pprint import pprint
+
 from Comprobante import Comprobante
 
 # Lista de comprobantes sin registrar
@@ -17,7 +19,7 @@ def on_chat_message(msg):
     # Si es un comprobante
     if content_type in ['photo']:
         comprobantes.append(Comprobante(msg))
-        print(msg)
+        pprint(msg)
 
     elif content_type in ['text'] and is_comprobantes(msg['text']):
         for c in comprobantes:
@@ -29,10 +31,11 @@ def on_chat_message(msg):
 
 def on_callback_query(msg):
     query_id, from_id, query_data = telepot.glance(msg, flavor='callback_query')
-
     # Se borra comprobante
     del comprobantes[int(query_data)]
-    print('Registrado comprobante', query_data)
+    print('\nRegistrado comprobante', query_data)
+
+    bot.answerCallbackQuery(query_id, text='Comrpobante {} registrado.'.format(query_data))
 
 
 # Funcion que checkea si el texto es un comando
