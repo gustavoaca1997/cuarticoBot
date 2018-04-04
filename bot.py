@@ -38,7 +38,7 @@ class ChatSesion(telepot.helper.ChatHandler):
                         [InlineKeyboardButton(text='Registrado', callback_data=indice)]
                     ])
 
-                bot.sendPhoto(chat_id, c.msg['photo'][0]['file_id'], reply_markup=keyboard, caption='Comprobante {}'.format(indice))
+                bot.sendPhoto(chat_id, c.msg['photo'][0]['file_id'], reply_markup=keyboard, caption='Comprobante {}'.format(indice+1))
 
                 indice += 1
 
@@ -51,7 +51,7 @@ class ChatSesion(telepot.helper.ChatHandler):
         print('\n\nCallback Query:')
         pprint(msg)
 
-        bot.sendMessage(from_id, 'Comprobante {} registrado.'.format(query_data))
+        bot.sendMessage(from_id, 'Comprobante {} registrado.'.format(int(query_data)+1))
 
 
 # Funcion que checkea si el texto es un comando
