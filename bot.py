@@ -137,7 +137,7 @@ def get_cuartico_data(entrada):
     return entrada_list[1], entrada_list[2]
 
 if __name__ == '__main__':
-    TOKEN = sys.argv[1] #get token from cli
+    TOKEN = os.environ.get('TOKEN')
 
     bot = telepot.DelegatorBot(TOKEN, [
         include_callback_query_chat_id(
