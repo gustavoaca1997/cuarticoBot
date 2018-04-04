@@ -21,6 +21,9 @@ class ChatSesion(telepot.helper.ChatHandler):
     def on_chat_message(self, msg):
         content_type, chat_type, chat_id = telepot.glance(msg)
 
+        if chat_type != 'private':
+            return
+
         # Si es un comprobante
         if content_type in ['photo']:
             comprobantes.append(Comprobante(msg))
@@ -47,7 +50,7 @@ class ChatSesion(telepot.helper.ChatHandler):
 
         print('\n\nCallback Query:')
         pprint(msg)
-        
+
         bot.sendMessage(from_id, 'Comprobante {} registrado.'.format(query_data))
 
 
