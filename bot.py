@@ -39,13 +39,15 @@ class ChatSesion(telepot.helper.ChatHandler):
             print('\n\nComprobante recibido:')
             pprint(msg)
 
+            bot.sendMessage(chat_id, 'Comprobante recibido.')
+
         elif content_type in ['text'] and is_comprobantes(msg['text']):
             # si es administrador
             if username in admins:
                 indice = 0
                 for c in comprobantes:
                     keyboard = InlineKeyboardMarkup(inline_keyboard=[
-                            [InlineKeyboardButton(text='Registrado', callback_data=indice)]
+                            [InlineKeyboardButton(text='Registrar', callback_data=indice)]
                         ])
 
                     bot.sendPhoto(chat_id, c.msg['photo'][0]['file_id'], reply_markup=keyboard, caption='Comprobante {}'.format(indice+1))
