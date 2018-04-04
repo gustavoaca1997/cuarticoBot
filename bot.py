@@ -67,6 +67,7 @@ class ChatSesion(telepot.helper.ChatHandler):
                     'chat_id': chat_id,
                     'usuario_cuartico': usuario_cuartico
                 }
+                bot.sendMessage(chat_id, 'Administrador registrado.')
 
     def on_callback_query(self, msg):
         query_id, from_id, query_data = telepot.glance(msg, flavor='callback_query')
