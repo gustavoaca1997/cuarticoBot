@@ -6,19 +6,15 @@ from telepot.loop import MessageLoop
 from telepot.namedtuple import InlineKeyboardMarkup, InlineKeyboardButton
 from telepot.namedtuple import InlineKeyboardMarkup, InlineKeyboardButton
 from telepot.delegate import pave_event_space, per_chat_id, create_open, include_callback_query_chat_id
+import requests
 
 from pprint import pprint
 
 from Comprobante import Comprobante
 
-# Lista de comprobantes sin registrar
-comprobantes = []
-
-# Diccionario de admins
-admins = telepot.helper.SafeDict()
-
 # Token para el cuartico
 TOKEN_CUARTICO = os.environ.get('TOKEN_CUARTICO')
+API = 'localhost:8000/'
 
 class ChatSesion(telepot.helper.ChatHandler):
     def __init__(self, *args, **kwargs):
@@ -34,59 +30,76 @@ class ChatSesion(telepot.helper.ChatHandler):
 
         # Si es un comprobante
         if content_type in ['photo']:
-            comprobantes.append(Comprobante(msg))
-
-            print('\n\nComprobante recibido:')
-            pprint(msg)
-
+            api_endpoint = API + 'pagos/'
+            data = {
+                'chat_id': chat_id,
+                'captura_comprobante': msg['photo'][0]['file_id']
+            }
+            response = requests.post(url=api_endpoint, data=data)
             bot.sendMessage(chat_id, 'Comprobante recibido.')
 
         elif content_type in ['text'] and is_comprobantes(msg['text']):
             # si es administrador
-            if username in admins:
-                indice = 0
-                for c in comprobantes:
+            if is_jd(username):
+                api_endpoint = API + 'pagos/'
+                r = requests.get(api_endpoint)
+                pagos = r.json()
+                for p in pagos:
                     keyboard = InlineKeyboardMarkup(inline_keyboard=[
-                            [InlineKeyboardButton(text='Registrar', callback_data=indice)]
+                            [InlineKeyboardButton(text='Registrar', callback_data=p['id'])]
                         ])
 
-                    bot.sendPhoto(chat_id, c.msg['photo'][0]['file_id'], reply_markup=keyboard, caption='Comprobante {}'.format(indice+1))
-
-                    indice += 1
+                    bot.sendPhoto(chat_id, p['captura_comprobante'], reply_markup=keyboard, caption='Comprobante {}'.format(p['id']))
 
             else:
                 bot.sendMessage(chat_id, 'Debes ser admin para usar este comando.')
 
         elif content_type in ['text'] and is_start(msg['text']):
-            usuario_cuartico, token_cuartico = get_cuartico_data(msg['text'])
-
+            ci, usuario_cuartico, token_cuartico = get_cuartico_data(msg['text'])
+            data = {}
             # Si tiene permisos para ver los comprobantes
             if token_cuartico == TOKEN_CUARTICO:
-                admins[username] = {
-                    'deuda': 0,
-                    'chat_id': chat_id,
-                    'usuario_cuartico': usuario_cuartico
-                }
-                bot.sendMessage(chat_id, 'Administrador registrado.')
+                data['usuario_cuartico'] = usuario_cuartico
+                data['jd'] = True
+
+            data['chat_id'] = chat_id
+            data['ci'] = ci
+            data['usuario_telegram'] = username
+
+            api_endpoint = API + 'clientes/'
+            r = requests.post(url = api_endpoint, data = data)
+            bot.sendMessage(chat_id, 'Usuario registrado.')
 
     def on_callback_query(self, msg):
         query_id, from_id, query_data = telepot.glance(msg, flavor='callback_query')
         username = msg['from']['username']
         # si es administrador
-        if username in admins:
+        if is_jd(username):
             # Se borra comprobante
-            del comprobantes[int(query_data)]
-            print('\nRegistrado comprobante', query_data)
+            api_endpoint = API + 'pagos/'
+            data = {
+                'registrar': True,
+                'pago_pk': query_data
+            }
+            r = requests.post(url=api_endpoint, data=data)
+            data = r.json()
 
-            print('\n\nCallback Query:')
-            pprint(msg)
-
-            bot.answerCallbackQuery(query_id, text='Registrado')
-            bot.sendMessage(from_id, 'Comprobante {} registrado.'.format(int(query_data)+1))
+            if data['borrados']:
+                bot.answerCallbackQuery(query_id, text='Registrado')
+                bot.sendMessage(from_id, 'Comprobante {} registrado.'.format(int(query_data)+1))
+            else:
+                bot.answerCallbackQuery(query_id, text='Error registrando.')
+                bot.sendMessage(from_id, 'Error registrando comprobante {}.'.format(int(query_data)+1))
 
         else:
-            bot.sendMessage(from_id, 'Debes ser admin para usar este comando.')
+            bot.sendMessage(from_id, 'Debes ser de la junta directiva para usar este comando.')
 
+# Funcion que chequea si el usuario es JD
+def is_jd(username):
+    api_endpoint = API + 'clientes/'
+    r = requests.get(url = api_endpoint, data={'usuario_telegram': username})
+    data = r.json()
+    return data['jd']
 
 # Funcion que checkea si el texto es un comando
 def is_command(text):
@@ -118,8 +131,8 @@ def is_start(entrada):
     if not is_command(entrada):
         return False
 
-    # /start o /start <usuario> <token>
-    if not len(entrada.split(' ')) in [1, 3]:
+    # /start <ci> o /start <ci> <usuario> <token>
+    if not len(entrada.split(' ')) in [2, 4]:
         return False
 
     comando = entrada.split(' ')[0]
@@ -131,13 +144,17 @@ def is_start(entrada):
 # Parser de los argumentos de /start
 def get_cuartico_data(entrada):
     entrada_list = entrada.split(' ')
-    assert(len(entrada_list) in [1, 3])
+    if not (len(entrada_list) in [2, 4]):
+        return False
 
-    # Si no se registró ningun admin
-    if len(entrada_list) == 1:
-        return None, None
+    ret = []
+    for e in entrada_list:
+        ret.append(e)
 
-    return entrada_list[1], entrada_list[2]
+    for i in range(len(e)-3):
+        e.append(None)
+
+    return ret
 
 if __name__ == '__main__':
     TOKEN = os.environ.get('TOKEN')
